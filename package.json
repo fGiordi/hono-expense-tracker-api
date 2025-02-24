@@ -1,0 +1,53 @@
+{
+  "name": "create-hono-backend",
+  "version": "1.0.1",
+  "description": "A modern Hono backend template with Cloudflare Workers and DrizzleORM",
+  "bin": {
+    "create-hono-backend": "./bin/create-hono-backend.js"
+  },
+  "scripts": {
+    "dev": "wrangler dev src/index.ts",
+    "deploy": "wrangler deploy --minify src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "studio": "npx drizzle-kit studio"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "dotenv": "^16.4.7",
+    "drizzle-kit": "^0.30.0",
+    "postgres": "^3.4.3",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.22.4"
+  },
+  "dependencies": {
+    "@hono/zod-validator": "^0.4.1",
+    "@neondatabase/serverless": "^0.10.4",
+    "bcryptjs": "^3.0.2",
+    "drizzle-orm": "^0.38.0",
+    "hono": "^3.12.2",
+    "zod": "^3.23.8"
+  },
+  "keywords": [
+    "hono",
+    "backend",
+    "cloudflare",
+    "workers",
+    "drizzle",
+    "typescript"
+  ],
+  "author": "Michael Shimeles",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/michaelshimeles/hono-starter-kit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/michaelshimeles/hono-starter-kit/issues"
+  },
+  "homepage": "https://github.com/michaelshimeles/hono-starter-kit#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
