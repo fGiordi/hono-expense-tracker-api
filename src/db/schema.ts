@@ -9,7 +9,7 @@ import {
 
 // Define the Expenses table with a foreign key to Users
 export const expenses = pgTable("expenses", {
-  id: integer("id").primaryKey(),
+  id: serial("id").primaryKey(),
   description: text("description").notNull(),
   amount: real("amount").notNull(), // Use real for monetary values
   category: text("category"),
