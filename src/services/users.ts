@@ -35,7 +35,8 @@ export class UserService {
     const hashedPassword = await hash(password, 10); // Hash the password
     const newUser = await db
       .insert(users)
-      .values({ username, email, password: hashedPassword });
+      .values({ username, email, password: hashedPassword })
+      .returning();
     // @ts-ignore
     return newUser[0]; // Return the first result (the newly created user)
   }

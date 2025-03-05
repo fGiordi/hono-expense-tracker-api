@@ -24,7 +24,21 @@ userRouter.post(
 
     const newUser = await userService.createUser(db, username, email, password);
 
-    return c.json({ message: "User created successfully", user: newUser });
+    // Generate token after successful user creation
+    const token = await sign(
+      {
+        id: newUser.id,
+        email: newUser.email,
+        exp: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour expiration
+      },
+      "secret"
+    );
+
+    return c.json({
+      message: "User created successfully",
+      user: newUser,
+      token, // Add the token to the response
+    });
   })
 );
 
