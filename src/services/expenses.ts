@@ -2,47 +2,47 @@ import { NeonDatabase } from "drizzle-orm/neon-serverless"; // Adjust based on y
 import { expenses } from "../db/schema"; // Import the expenses schema
 import { eq } from "drizzle-orm";
 
-const categories = {
-  Food: [
-    "restaurant",
-    "cafe",
-    "groceries",
-    "food",
-    "dinner",
-    "lunch",
-    "breakfast",
-  ],
-  Transportation: [
-    "uber",
-    "lyft",
-    "taxi",
-    "gas",
-    "fuel",
-    "public transport",
-    "metro",
-  ],
-  Utilities: ["electricity", "water", "internet", "phone", "utility", "bill"],
-  Entertainment: ["movie", "netflix", "spotify", "concert", "game", "hobby"],
-  Shopping: ["amazon", "clothes", "shoes", "electronics", "store", "mall"],
-  Health: ["gym", "pharmacy", "doctor", "hospital", "fitness", "yoga"],
-  Travel: ["flight", "hotel", "airbnb", "vacation", "trip", "luggage"],
-  Education: ["course", "book", "tuition", "school", "workshop", "seminar"],
-  Miscellaneous: ["other", "uncategorized", "misc"],
-};
+enum Category {
+  Food = "Food",
+  Transportation = "Transportation",
+  Utilities = "Utilities",
+  Entertainment = "Entertainment",
+  Shopping = "Shopping",
+  Health = "Health",
+  Travel = "Travel",
+  Education = "Education",
+  Miscellaneous = "Miscellaneous",
+  Housing = "Housing",
+  Insurance = "Insurance",
+  PersonalCare = "PersonalCare",
+  Subscriptions = "Subscriptions",
+  GiftsAndDonations = "GiftsAndDonations",
+  WorkRelated = "WorkRelated",
+}
+
+// Array of category values
+
+interface IUpdateExpense {
+  db: NeonDatabase;
+  id: number;
+  description?: string;
+  amount?: number;
+  category?: string;
+}
 
 export class ExpenseService {
   // Automatically categorize a transaction based on its description
-  public categorizeTransaction(description: string): string {
-    const lowerCaseDescription = description.toLowerCase();
+  // public categorizeTransaction(description: string): string {
+  //   const lowerCaseDescription = description.toLocaleLowerCase();
 
-    for (const [category, keywords] of Object.entries(categories)) {
-      if (keywords.some((keyword) => lowerCaseDescription.includes(keyword))) {
-        return category;
-      }
-    }
+  //   for (const [category, keywords] of Object.entries(categories)) {
+  //     if (keywords.some((keyword) => lowerCaseDescription.includes(keyword))) {
+  //       return category;
+  //     }
+  //   }
 
-    return "Miscellaneous"; // Default category
-  }
+  //   return "Miscellaneous"; // Default category
+  // }
 
   // Create a new expense
   public async createExpense(
@@ -50,9 +50,8 @@ export class ExpenseService {
     description: string,
     amount: number,
     userId: number,
-    _category: string
+    category: Category
   ) {
-    const category = this.categorizeTransaction(description); // Automatically categorize
     const [newExpense] = await db
       .insert(expenses)
       .values({
@@ -63,6 +62,7 @@ export class ExpenseService {
         createdAt: new Date(),
       })
       .returning();
+
     return newExpense;
   }
 
@@ -81,18 +81,13 @@ export class ExpenseService {
   }
 
   // Update an expense
-  public async updateExpense(
-    db: NeonDatabase,
-    id: number,
-    description?: string,
-    amount?: number
-  ) {
-    let category: string | undefined;
-
-    if (description) {
-      category = this.categorizeTransaction(description); // Re-categorize if description changes
-    }
-
+  public async updateExpense({
+    db,
+    id,
+    description,
+    amount,
+    category,
+  }: IUpdateExpense) {
     const [updatedExpense] = await db
       .update(expenses)
       .set({ description, amount, category })
