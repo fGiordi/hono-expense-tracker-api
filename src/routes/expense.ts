@@ -64,8 +64,8 @@ expenseRouter.get(
 
     const expense = await expenseService.getExpenseById(
       db,
-      Number(expenseId),
-      userId
+      Number(expenseId)
+      // userId
     );
 
     if (!expense) {
@@ -84,7 +84,7 @@ expenseRouter.put(
     z.object({
       description: z.string().min(1).optional(),
       amount: z.number().positive().optional(),
-      category: z.string().optional(),
+      category: z.string().min(1).optional(),
     })
   ),
   withDb(async (c, db) => {
@@ -93,12 +93,13 @@ expenseRouter.put(
     const user = c.get("user"); // Get user from JWT middleware
     const userId = user.id;
 
-    const updatedExpense = await expenseService.updateExpense(
+    const updatedExpense = await expenseService.updateExpense({
       db,
-      Number(expenseId),
-      userId,
-      { description, amount, category }
-    );
+      id: Number(expenseId),
+      amount,
+      category,
+      description,
+    });
 
     if (!updatedExpense) {
       return c.json({ message: "Expense not found" }, 404);
@@ -121,8 +122,7 @@ expenseRouter.delete(
 
     const deletedExpense = await expenseService.deleteExpense(
       db,
-      Number(expenseId),
-      userId
+      Number(expenseId)
     );
 
     if (!deletedExpense) {
