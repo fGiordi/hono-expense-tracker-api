@@ -2,7 +2,7 @@ import { NeonDatabase } from "drizzle-orm/neon-serverless"; // Adjust based on y
 import { expenses } from "../db/schema"; // Import the expenses schema
 import { eq } from "drizzle-orm";
 
-enum Category {
+export enum Category {
   Food = "Food",
   Transportation = "Transportation",
   Utilities = "Utilities",
@@ -19,6 +19,8 @@ enum Category {
   GiftsAndDonations = "GiftsAndDonations",
   WorkRelated = "WorkRelated",
 }
+
+export const categoryValues = Object.values(Category);
 
 // Array of category values
 

@@ -3,7 +3,7 @@ import { UserService } from "../services/users";
 import { withDb } from "../middleware/withDb";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { compare } from "bcryptjs";
+import { compare, genSalt, getSalt } from "bcryptjs";
 import { sign } from "hono/jwt";
 
 const userRouter = new Hono();
@@ -58,6 +58,10 @@ userRouter.post(
 
     const isMatch = await compare(password, user.password);
 
+    const salt = getSalt(user.password);
+
+    const newSalt = await genSalt(10); // Generate a new salt
+
     if (!isMatch) {
       return c.json({ message: "Invalid credentials" }, 401);
     }
@@ -71,7 +75,11 @@ userRouter.post(
       "secret"
     );
 
-    return c.json({ message: "Login successful", token });
+    return c.json({
+      message: "Login successful",
+      token,
+      salt: salt || newSalt,
+    });
   })
 );
 
