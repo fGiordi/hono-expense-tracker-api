@@ -67,7 +67,7 @@ export class ExpenseService {
         userId,
         createdAt: new Date(),
         tags,
-        date,
+        date: new Date(date),
       })
       .returning();
 
