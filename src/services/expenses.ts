@@ -30,6 +30,8 @@ interface IUpdateExpense {
   description?: string;
   amount?: number;
   category?: string;
+  tags: []; // Array of tags
+  date: Date;
 }
 
 export class ExpenseService {
@@ -52,7 +54,9 @@ export class ExpenseService {
     description: string,
     amount: number,
     userId: number,
-    category: Category
+    category: Category,
+    tags: [],
+    date: Date
   ) {
     const [newExpense] = await db
       .insert(expenses)
@@ -62,6 +66,8 @@ export class ExpenseService {
         category,
         userId,
         createdAt: new Date(),
+        tags,
+        date,
       })
       .returning();
 
@@ -89,10 +95,12 @@ export class ExpenseService {
     description,
     amount,
     category,
+    tags,
+    date,
   }: IUpdateExpense) {
     const [updatedExpense] = await db
       .update(expenses)
-      .set({ description, amount, category })
+      .set({ description, amount, category, tags, date })
       .where(eq(expenses.id, id))
       .returning();
     return updatedExpense;

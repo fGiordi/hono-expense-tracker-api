@@ -20,11 +20,16 @@ expenseRouter.post(
       description: z.string().min(1),
       amount: z.number().positive(),
       category: z.string().optional(),
+      date: z
+        .string()
+        .optional()
+        .default(new Date().toISOString().split("T")[0]),
+      tags: z.array(z.string()).optional().default([]), // New field: tags
     })
   ),
   withDb(async (c, db) => {
-    const { description, amount, category } = c.req.valid("json");
-    const user = c.get("user"); // Get user from JWT middleware
+    const { description, amount, category, date, tags } = c.req.valid("json");
+    const user = c.get("user");
     const userId = user.id;
 
     const newExpense = await expenseService.createExpense(
@@ -32,13 +37,18 @@ expenseRouter.post(
       description,
       amount,
       userId,
-      category
+      category,
+      tags,
+      date
     );
 
-    return c.json({
-      message: "Expense created successfully",
-      expense: newExpense,
-    });
+    return c.json(
+      {
+        message: "Expense created successfully",
+        expense: newExpense,
+      },
+      201
+    );
   })
 );
 
@@ -85,11 +95,14 @@ expenseRouter.put(
       description: z.string().min(1).optional(),
       amount: z.number().positive().optional(),
       category: z.string().min(1).optional(),
+      date: z.string().optional(),
+      tags: z.array(z.string()).optional(), // New field: tags
     })
   ),
   withDb(async (c, db) => {
     const expenseId = c.req.param("id");
-    const { description, amount, category } = c.req.valid("json");
+    const { description, amount, category, date, tags } = c.req.valid("json");
+
     const user = c.get("user"); // Get user from JWT middleware
     const userId = user.id;
 
@@ -99,6 +112,8 @@ expenseRouter.put(
       amount,
       category,
       description,
+      date,
+      tags,
     });
 
     if (!updatedExpense) {

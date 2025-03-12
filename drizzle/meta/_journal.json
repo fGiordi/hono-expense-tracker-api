@@ -15,6 +15,13 @@
       "when": 1740433313530,
       "tag": "0001_eminent_spirit",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1741807613940,
+      "tag": "0002_demonic_darkhawk",
+      "breakpoints": true
     }
   ]
 }
