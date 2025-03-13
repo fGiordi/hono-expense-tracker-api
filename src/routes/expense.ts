@@ -32,6 +32,8 @@ expenseRouter.post(
     const user = c.get("user");
     const userId = user.id;
 
+    console.log("data", description, amount, category, date, tags);
+
     const newExpense = await expenseService.createExpense(
       db,
       description,
@@ -112,7 +114,7 @@ expenseRouter.put(
       amount,
       category,
       description,
-      date,
+      date: new Date(),
       tags,
     });
 
