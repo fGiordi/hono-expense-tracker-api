@@ -1,6 +1,6 @@
 import { NeonDatabase } from "drizzle-orm/neon-serverless"; // Adjust based on your DB type
 import { expenses } from "../db/schema"; // Import the expenses schema
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export enum Category {
   Food = "Food",
@@ -34,19 +34,24 @@ interface IUpdateExpense {
   date: Date;
 }
 
+type CategorySummary = {
+  category: string;
+  total: number;
+};
+
 export class ExpenseService {
   // Automatically categorize a transaction based on its description
-  // public categorizeTransaction(description: string): string {
-  //   const lowerCaseDescription = description.toLocaleLowerCase();
+  public categorizeTransaction(description: string): string {
+    const lowerCaseDescription = description.toLocaleLowerCase();
 
-  //   for (const [category, keywords] of Object.entries(categories)) {
-  //     if (keywords.some((keyword) => lowerCaseDescription.includes(keyword))) {
-  //       return category;
-  //     }
-  //   }
+    for (const [category, keywords] of Object.entries(categories)) {
+      if (keywords.some((keyword) => lowerCaseDescription.includes(keyword))) {
+        return category;
+      }
+    }
 
-  //   return "Miscellaneous"; // Default category
-  // }
+    return "Miscellaneous"; // Default category
+  }
 
   // Create a new expense
   public async createExpense(
@@ -113,5 +118,24 @@ export class ExpenseService {
       .where(eq(expenses.id, id))
       .returning();
     return deletedExpense;
+  }
+
+  public async getCategorySummary(
+    db: NeonDatabase,
+    userId: number
+  ): Promise<CategorySummary[]> {
+    const result = await db
+      .select({
+        category: expenses.category,
+        total: sql<number>`SUM(${expenses.amount})`, // Use sql to perform the SUM aggregation
+      })
+      .from(expenses)
+      .where(eq(expenses.userId, userId)) // Filter by user
+      .groupBy(expenses.category); // Group by category
+
+    return result.map((item) => ({
+      category: item.category ?? "Miscellaneous",
+      total: item.total,
+    }));
   }
 }

@@ -66,6 +66,15 @@ expenseRouter.get(
   })
 );
 
+expenseRouter.get(
+  "/summary",
+  withDb(async (c, db) => {
+    const user = c.get("user");
+    const userId = user.id;
+    const summary = await expenseService.getCategorySummary(db, userId);
+    return c.json(summary, 200);
+  })
+);
 // Get a single expense by ID
 expenseRouter.get(
   "/:id",
