@@ -1,6 +1,6 @@
 import { hash } from "bcryptjs";
-import { users } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { users, groupInvites, groupMembers } from "../db/schema";
+import { eq, and } from "drizzle-orm";
 import { NeonDatabase } from "drizzle-orm/neon-serverless"; // Use NeonDatabase
 
 export class UserService {
@@ -33,12 +33,30 @@ export class UserService {
     password: string
   ) {
     const hashedPassword = await hash(password, 10); // Hash the password
-    const newUser = await db
+
+    // Create the user
+    const [newUser] = await db
       .insert(users)
       .values({ username, email, password: hashedPassword })
       .returning();
-    // @ts-ignore
-    return newUser[0]; // Return the first result (the newly created user)
+
+    // Check for any pending group invitations
+    const pendingInvites = await db
+      .select()
+      .from(groupInvites)
+      .where(
+        and(eq(groupInvites.invitedEmail, email), eq(groupInvites.used, true))
+      );
+
+    // Add user to groups they were invited to
+    for (const invite of pendingInvites) {
+      await db.insert(groupMembers).values({
+        groupId: invite.groupId,
+        userId: newUser.id,
+      });
+    }
+
+    return newUser;
   }
 
   public async updateUser(
