@@ -1,6 +1,6 @@
 import { NeonDatabase } from "drizzle-orm/neon-serverless"; // Adjust based on your DB type
-import { expenses } from "../db/schema"; // Import the expenses schema
-import { eq, sql } from "drizzle-orm";
+import { expenses, groupMembers } from "../db/schema"; // Import the expenses and groupMembers schema
+import { eq, sql, and, desc } from "drizzle-orm";
 
 export enum Category {
   Food = "Food",
@@ -54,88 +54,209 @@ export class ExpenseService {
   }
 
   // Create a new expense
-  public async createExpense(
+  async createExpense(
     db: NeonDatabase,
     description: string,
     amount: number,
     userId: number,
-    category: Category,
-    tags: [],
-    date: Date
+    category?: string,
+    tags: string[] = [],
+    date?: string,
+    groupId?: number
   ) {
+    // If groupId is provided, verify user is a member of the group
+    if (groupId) {
+      const isMember = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, groupId),
+            eq(groupMembers.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (!isMember.length) {
+        throw new Error("User is not a member of this group");
+      }
+    }
+
     const [newExpense] = await db
       .insert(expenses)
       .values({
         description,
         amount,
-        category,
         userId,
-        createdAt: new Date(),
+        category,
         tags,
-        date: new Date(date),
+        date: date ? new Date(date) : new Date(),
+        groupId,
       })
       .returning();
 
     return newExpense;
   }
 
-  // Get all expenses for a user
-  public async getExpensesByUser(db: NeonDatabase, userId: number) {
-    return await db.select().from(expenses).where(eq(expenses.userId, userId));
-  }
-
-  // Get a single expense by ID
-  public async getExpenseById(db: NeonDatabase, id: number) {
-    const [expense] = await db
+  // Get all expenses for a user (including group expenses they have access to)
+  async getExpensesByUser(db: NeonDatabase, userId: number) {
+    // Get personal expenses and expenses from groups the user is a member of
+    const userExpenses = await db
       .select()
       .from(expenses)
-      .where(eq(expenses.id, id));
-    return expense;
+      .where(and(eq(expenses.userId, userId), eq(expenses.groupId, null)))
+      .orderBy(desc(expenses.date));
+
+    // Get group expenses
+    const groupExpenses = await db
+      .select()
+      .from(expenses)
+      .innerJoin(
+        groupMembers,
+        and(
+          eq(expenses.groupId, groupMembers.groupId),
+          eq(groupMembers.userId, userId)
+        )
+      )
+      .orderBy(desc(expenses.date));
+
+    return [...userExpenses, ...groupExpenses.map((ge) => ge.expenses)];
+  }
+
+  // Get expenses for a specific group
+  async getGroupExpenses(db: NeonDatabase, groupId: number, userId: number) {
+    // Verify user is a member of the group
+    const isMember = await db
+      .select()
+      .from(groupMembers)
+      .where(
+        and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId))
+      )
+      .limit(1);
+
+    if (!isMember.length) {
+      throw new Error("User is not a member of this group");
+    }
+
+    return await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.groupId, groupId))
+      .orderBy(desc(expenses.date));
+  }
+
+  // Get category summary for a user (including group expenses)
+  async getCategorySummary(db: NeonDatabase, userId: number) {
+    const allExpenses = await this.getExpensesByUser(db, userId);
+
+    const summary: Record<string, { total: number; count: number }> = {};
+
+    for (const expense of allExpenses) {
+      const category = expense.category || "Uncategorized";
+      if (!summary[category]) {
+        summary[category] = { total: 0, count: 0 };
+      }
+      summary[category].total += expense.amount;
+      summary[category].count += 1;
+    }
+
+    return summary;
   }
 
   // Update an expense
-  public async updateExpense({
-    db,
-    id,
-    description,
-    amount,
-    category,
-    tags,
-    date,
-  }: IUpdateExpense) {
+  async updateExpense(
+    db: NeonDatabase,
+    expenseId: number,
+    userId: number,
+    updates: {
+      description?: string;
+      amount?: number;
+      category?: string;
+      tags?: string[];
+      date?: string;
+    }
+  ) {
+    // First, get the expense to check permissions
+    const [expense] = await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.id, expenseId));
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    // Check if user has permission to update this expense
+    if (expense.groupId) {
+      const isMember = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, expense.groupId),
+            eq(groupMembers.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (!isMember.length) {
+        throw new Error("User does not have permission to update this expense");
+      }
+    } else if (expense.userId !== userId) {
+      throw new Error("User does not have permission to update this expense");
+    }
+
+    // Apply updates
     const [updatedExpense] = await db
       .update(expenses)
-      .set({ description, amount, category, tags, date })
-      .where(eq(expenses.id, id))
+      .set({
+        ...updates,
+        date: updates.date ? new Date(updates.date) : undefined,
+      })
+      .where(eq(expenses.id, expenseId))
       .returning();
+
     return updatedExpense;
   }
 
   // Delete an expense
-  public async deleteExpense(db: NeonDatabase, id: number) {
+  async deleteExpense(db: NeonDatabase, expenseId: number, userId: number) {
+    // First, get the expense to check permissions
+    const [expense] = await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.id, expenseId));
+
+    if (!expense) {
+      throw new Error("Expense not found");
+    }
+
+    // Check if user has permission to delete this expense
+    if (expense.groupId) {
+      const isMember = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, expense.groupId),
+            eq(groupMembers.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (!isMember.length) {
+        throw new Error("User does not have permission to delete this expense");
+      }
+    } else if (expense.userId !== userId) {
+      throw new Error("User does not have permission to delete this expense");
+    }
+
+    // Delete the expense
     const [deletedExpense] = await db
       .delete(expenses)
-      .where(eq(expenses.id, id))
+      .where(eq(expenses.id, expenseId))
       .returning();
+
     return deletedExpense;
-  }
-
-  public async getCategorySummary(
-    db: NeonDatabase,
-    userId: number
-  ): Promise<CategorySummary[]> {
-    const result = await db
-      .select({
-        category: expenses.category,
-        total: sql<number>`SUM(${expenses.amount})`, // Use sql to perform the SUM aggregation
-      })
-      .from(expenses)
-      .where(eq(expenses.userId, userId)) // Filter by user
-      .groupBy(expenses.category); // Group by category
-
-    return result.map((item) => ({
-      category: item.category ?? "Miscellaneous",
-      total: item.total,
-    }));
   }
 }
