@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import userRouter from "./routes/user";
 import expenseRouter from "./routes/expense";
+import groupRouter from "./routes/group";
 import { Pool } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-serverless";
 
@@ -30,8 +31,9 @@ app.get("/", (c) => {
   return c.text("Welcome to the Expense Tracker API!");
 });
 
-// Attach the user and expense routers
+// Attach the user, expense, and group routers
 app.route("/users", userRouter);
 app.route("/expenses", expenseRouter);
+app.route("/groups", groupRouter);
 
 export default app;
