@@ -122,9 +122,10 @@ groupRouter.post(
 
     try {
       await groupService.acceptInvitation(db, token, user.id);
-      return c.json({ message: "Successfully joined the group" });
+      return c.json({ message: "Successfully joined the group" }, 201);
     } catch (error) {
       if (error instanceof Error) {
+        console.log("error", error);
         return c.json({ message: error.message }, 400);
       }
       throw error;

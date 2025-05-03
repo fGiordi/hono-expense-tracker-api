@@ -1,6 +1,6 @@
 import { NeonDatabase } from "drizzle-orm/neon-serverless"; // Adjust based on your DB type
 import { expenses, groupMembers } from "../db/schema"; // Import the expenses and groupMembers schema
-import { eq, sql, and, desc } from "drizzle-orm";
+import { eq, sql, and, desc, isNull } from "drizzle-orm";
 
 export enum Category {
   Food = "Food",
@@ -41,17 +41,6 @@ type CategorySummary = {
 
 export class ExpenseService {
   // Automatically categorize a transaction based on its description
-  public categorizeTransaction(description: string): string {
-    const lowerCaseDescription = description.toLocaleLowerCase();
-
-    for (const [category, keywords] of Object.entries(categories)) {
-      if (keywords.some((keyword) => lowerCaseDescription.includes(keyword))) {
-        return category;
-      }
-    }
-
-    return "Miscellaneous"; // Default category
-  }
 
   // Create a new expense
   async createExpense(
@@ -100,16 +89,18 @@ export class ExpenseService {
 
   // Get all expenses for a user (including group expenses they have access to)
   async getExpensesByUser(db: NeonDatabase, userId: number) {
-    // Get personal expenses and expenses from groups the user is a member of
+    // Get personal expenses
     const userExpenses = await db
       .select()
       .from(expenses)
-      .where(and(eq(expenses.userId, userId), eq(expenses.groupId, null)))
+      .where(and(eq(expenses.userId, userId), isNull(expenses.groupId)))
       .orderBy(desc(expenses.date));
 
     // Get group expenses
     const groupExpenses = await db
-      .select()
+      .select({
+        expenses: expenses,
+      })
       .from(expenses)
       .innerJoin(
         groupMembers,
@@ -120,6 +111,7 @@ export class ExpenseService {
       )
       .orderBy(desc(expenses.date));
 
+    // Combine and return all expenses
     return [...userExpenses, ...groupExpenses.map((ge) => ge.expenses)];
   }
 
@@ -161,6 +153,40 @@ export class ExpenseService {
     }
 
     return summary;
+  }
+
+  // Get a single expense by ID
+  async getExpenseById(db: NeonDatabase, expenseId: number, userId: number) {
+    const [expense] = await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.id, expenseId));
+
+    if (!expense) {
+      return null;
+    }
+
+    // Check if user has permission to view this expense
+    if (expense.groupId) {
+      const isMember = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, expense.groupId),
+            eq(groupMembers.userId, userId)
+          )
+        )
+        .limit(1);
+
+      if (!isMember.length) {
+        throw new Error("User does not have permission to view this expense");
+      }
+    } else if (expense.userId !== userId) {
+      throw new Error("User does not have permission to view this expense");
+    }
+
+    return expense;
   }
 
   // Update an expense

@@ -78,6 +78,7 @@ userRouter.post(
     return c.json({
       message: "Login successful",
       token,
+      userId: user.id,
       salt: salt || newSalt,
     });
   })

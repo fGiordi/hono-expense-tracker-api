@@ -85,6 +85,7 @@ expenseRouter.get(
         groupId,
         user.id
       );
+      console.log("groupExpenses", groupExpenses);
       return c.json(groupExpenses);
     } catch (error) {
       if (error instanceof Error) {
